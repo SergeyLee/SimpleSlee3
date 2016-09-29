@@ -1,0 +1,14 @@
+# Java compiled #
+#################
+*.class
+
+# IDE #
+###########
+.classpath
+.project
+.settings
+.idea
+
+# Maven #
+#########
+target
