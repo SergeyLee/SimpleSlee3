@@ -1,21 +1,12 @@
 package com.mobius.examples;
 
-import java.util.Arrays;
+import org.mobicents.slee.SbbContextExt;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.slee.*;
-import javax.slee.facilities.ActivityContextNamingFacility;
-import javax.slee.facilities.FacilityException;
-import javax.slee.facilities.NameAlreadyBoundException;
-import javax.slee.facilities.TimerEvent;
-import javax.slee.facilities.TimerFacility;
-import javax.slee.facilities.TimerID;
-import javax.slee.facilities.TimerOptions;
-import javax.slee.facilities.Tracer;
-
-import org.mobicents.slee.*;
+import javax.slee.facilities.*;
+import javax.slee.serviceactivity.ServiceActivity;
 
 public abstract class SimpleSlee3RootSbb implements Sbb, SimpleSlee3Root {
 	
@@ -28,6 +19,7 @@ public abstract class SimpleSlee3RootSbb implements Sbb, SimpleSlee3Root {
 		this.logger = sbbContext.getTracer(SimpleSlee3RootSbb.class.getSimpleName());
 		try {
 			Context ctx = (Context) new InitialContext();
+			logger.info(">>>>>> Lookup for TimerFacility");
 			timerFacility = (TimerFacility) ctx.lookup(TimerFacility.JNDI_NAME);
 		} catch (Exception ne) {
 			logger.severe("Could not set SBB context:", ne);
@@ -49,8 +41,6 @@ public abstract class SimpleSlee3RootSbb implements Sbb, SimpleSlee3Root {
 	public void sbbExceptionThrown(Exception exception, Object event, ActivityContextInterface activity) {}
 	public void sbbRolledBack(RolledBackContext context) {}
 	
-	
-	
 	/**
 	 * Convenience method to retrieve the SbbContext object stored in setSbbContext.
 	 * 
@@ -67,32 +57,52 @@ public abstract class SimpleSlee3RootSbb implements Sbb, SimpleSlee3Root {
 	private SbbContextExt sbbContext; // This SBB's SbbContext
 
 	private void setTimer(ActivityContextInterface ac) {
+		logger.warning(">>>>>> setTimer");
 		TimerOptions options = new TimerOptions();
 		//options.setPersistent(true);
 
 		// Set the timer on ACI
 		TimerID timerID = this.timerFacility.setTimer(ac, null, System.currentTimeMillis() + 10000, options);
+
+		logger.warning(">>>>>> setTimerID: "+timerID);
 		this.setTimerID(timerID);
 	}
 
 	private void cancelTimer() {
+		logger.warning(">>>>>> cancelTimer");
 		if (this.getTimerID() != null) {
-			timerFacility.cancelTimer(this.getTimerID());
+			TimerID timerID = this.getTimerID();
+			logger.warning(">>>>>> getTimerID: "+timerID);
+			timerFacility.cancelTimer(timerID);
 		}
 	}
 	
 	public void onTimerEvent(TimerEvent event, ActivityContextInterface aci/*, EventContext eventContext*/) {
-		logger.info("onTimerEvent");
+		logger.warning(">>>>>> onTimerEvent");
+		//System.out.println(">>>>>> onTimerEvent");
+
 		this.cancelTimer();
+
+		logger.warning(">>>>>> detach from aci: "+aci);
+		//System.out.println(">>>>>> detach from aci: "+aci);
+		aci.detach(this.getSbbContext().getSbbLocalObject());
 	}
 	
 	public abstract void fireTimerEvent(TimerEvent event, ActivityContextInterface aci, Address address);
 	
 	public void onServiceStartedEvent(javax.slee.serviceactivity.ServiceStartedEvent event, ActivityContextInterface aci/*, EventContext eventContext*/) {
-		logger.info("onServiceStartedEvent");
+		logger.warning(">>>>>> onServiceStartedEvent");
 		this.setTimer(aci);
 	}
-	
+
+	public void onActivityEndEvent(javax.slee.ActivityEndEvent event, ActivityContextInterface aci) {
+		logger.warning(">>>>>> onActivityEndEvent");
+		if (aci.getActivity() instanceof ServiceActivity) {
+			ServiceActivity sa = (ServiceActivity) aci.getActivity();
+
+		}
+	}
+
 	// 'timerID' CMP field setter
 	public abstract void setTimerID(TimerID value);
 
